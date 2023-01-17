@@ -1,0 +1,11 @@
+node_modules
+# Keep environment variables out of version control
+.env
+dist
+coverage
+jest.config.js
+*.log
+package-lock.json
+.idea/vcs.xml
+.idea/workspace.xml
+.vscode/settings.json

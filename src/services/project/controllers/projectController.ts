@@ -1,11 +1,11 @@
-import logger from '@/utils/logger';
+import {Prisma, PrismaClient} from '@prisma/client';
 import httpCodes from '@/utils/response/httpCodes';
-import {PrismaClient} from '@prisma/client';
+import {ProjectModel} from '@/utils/types';
 import {Request, Response} from 'express';
 import response from '@/utils/response';
-import {ProjectModel} from '@/utils/types';
+import logger from '@/utils/logger';
+import projectQueue from './queue';
 import {z} from 'zod';
-import Queue from 'bull';
 
 const prisma = new PrismaClient();
 
@@ -16,6 +16,7 @@ const create = async (req: Request, res: Response) => {
     const newProject = await prisma.project.create({
       data: projectInput,
     });
+    await projectQueue.createNewProject(newProject);
 
     return response(res, httpCodes.CREATED, 'New project created', newProject);
   } catch (error: any) {
@@ -30,25 +31,56 @@ const create = async (req: Request, res: Response) => {
       );
     }
 
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      // P2022: Unique constraint failed
+      // Prisma error codes: https://www.prisma.io/docs/reference/api-reference/error-reference#error-codes
+      if (error.code === 'P2002') {
+        return response(
+          res,
+          httpCodes.CONFLICT,
+          'The project name already exists',
+          null
+        );
+      }
+    }
+
     return response(res, httpCodes.INTERNAL_SERVER_ERROR, error.message, null);
   }
 };
 
 const findAll = async (req: Request, res: Response) => {
   try {
-    const JobsQueue = new Queue('queue-name');
     const projects = await prisma.project.findMany();
-
-    return response(
-      res,
-      httpCodes.OK,
-      'Success getting all projects',
-      projects
-    );
+    const result = await projectQueue.queue.getJobs(['completed', 'active']);
+    return response(res, httpCodes.OK, 'Success getting all projects', [
+      ...projects,
+      ...result,
+    ]);
   } catch (error: any) {
     logger.error(error.message);
     return response(res, httpCodes.INTERNAL_SERVER_ERROR, error.message, null);
   }
 };
 
-export default {create, findAll};
+const queue = async (req: Request, res: Response) => {
+  try {
+    await projectQueue.createNewProject(req.body);
+    return response(res, httpCodes.OK, 'New project created', null);
+  } catch (error: any) {
+    logger.error(error.message);
+    return response(res, httpCodes.INTERNAL_SERVER_ERROR, error.message, null);
+  }
+};
+
+const getAllQueue = async (req: Request, res: Response) => {
+  try {
+    const result = await projectQueue.queue.getJobs(['completed', 'active']);
+    console.log(result);
+    return response(res, httpCodes.OK, 'New project created', result);
+  } catch (error: any) {
+    logger.error(error.message);
+    return response(res, httpCodes.INTERNAL_SERVER_ERROR, error.message, null);
+  }
+};
+
+export default {create, findAll, queue, getAllQueue};

@@ -35,7 +35,7 @@ datasource db {
 
 model Project {
   id         Int      @id @default(autoincrement())
-  name       String
+  name       String   @unique
   dbClient   DbClient
   dbName     String
   dbHost     String

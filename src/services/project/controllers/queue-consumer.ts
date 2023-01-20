@@ -20,4 +20,10 @@ const queueProcess = async (job: Job) => {
   return Promise.resolve(`job ${job.id} complete!`);
 };
 
-export default {queueProcess};
+const runningProjectProcess = async (job: Job) => {
+  await cmd('bash', '-c', 'cd ./projects/my-blog; npm run develop');
+
+  return Promise.resolve(`job ${job.id} complete!`);
+};
+
+export default {queueProcess, runningProjectProcess};

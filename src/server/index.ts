@@ -1,3 +1,5 @@
+import 'module-alias/register';
+
 import express, {Application, Router, json, urlencoded} from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';

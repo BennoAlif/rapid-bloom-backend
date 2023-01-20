@@ -6,6 +6,7 @@ import response from '@/utils/response';
 import logger from '@/utils/logger';
 import projectQueue from './queue';
 import {z} from 'zod';
+import pm2 from 'pm2';
 
 const prisma = new PrismaClient();
 
@@ -25,7 +26,7 @@ const create = async (req: Request, res: Response) => {
       return response(
         res,
         httpCodes.BAD_REQUEST,
-        'validation error',
+        'Validation Error',
         null,
         error.issues
       );
@@ -51,36 +52,48 @@ const create = async (req: Request, res: Response) => {
 const findAll = async (req: Request, res: Response) => {
   try {
     const projects = await prisma.project.findMany();
-    const result = await projectQueue.queue.getJobs(['completed', 'active']);
-    return response(res, httpCodes.OK, 'Success getting all projects', [
-      ...projects,
-      ...result,
-    ]);
+
+    return response(
+      res,
+      httpCodes.OK,
+      'Success getting all projects',
+      projects
+    );
   } catch (error: any) {
     logger.error(error.message);
     return response(res, httpCodes.INTERNAL_SERVER_ERROR, error.message, null);
   }
 };
 
-const queue = async (req: Request, res: Response) => {
+const runProject = async (req: Request, res: Response) => {
   try {
-    await projectQueue.createNewProject(req.body);
-    return response(res, httpCodes.OK, 'New project created', null);
+    const {name} = req.params;
+    const project = await prisma.project.findUniqueOrThrow({
+      where: {name},
+    });
+    pm2.connect(() => {
+      pm2.start(
+        {
+          name: project.name,
+          script: 'yarn',
+          args: ['develop'],
+          interpreter: 'bash',
+          cwd: '/mnt/d/CODELABS/project/backend/rapid-bloom-backend/projects/benno-blog',
+        },
+        err => {
+          if (err) {
+            console.log(err);
+          }
+          pm2.disconnect();
+        }
+      );
+    });
+
+    return response(res, httpCodes.OK, 'Project is running', project);
   } catch (error: any) {
     logger.error(error.message);
     return response(res, httpCodes.INTERNAL_SERVER_ERROR, error.message, null);
   }
 };
 
-const getAllQueue = async (req: Request, res: Response) => {
-  try {
-    const result = await projectQueue.queue.getJobs(['completed', 'active']);
-    console.log(result);
-    return response(res, httpCodes.OK, 'New project created', result);
-  } catch (error: any) {
-    logger.error(error.message);
-    return response(res, httpCodes.INTERNAL_SERVER_ERROR, error.message, null);
-  }
-};
-
-export default {create, findAll, queue, getAllQueue};
+export default {create, findAll, runProject};

@@ -58,6 +58,6 @@ enum DbClient {
 
 enum Status {
   RUNNING
-  STOPPED
+  ACTIVE
   PROCESSING
 }

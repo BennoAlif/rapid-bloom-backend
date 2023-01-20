@@ -6,7 +6,7 @@ const queueProcess = async (job: Job) => {
   await cmd(
     'bash',
     '-c',
-    `cd projects;npx create-strapi-app@latest ${
+    `cd ../projects;npx create-strapi-app@latest ${
       job.data.name
     } --dbclient=${job.data.dbClient.toLowerCase()} --dbhost=${
       job.data.dbHost

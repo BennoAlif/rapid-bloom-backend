@@ -78,7 +78,7 @@ const runProject = async (req: Request, res: Response) => {
           script: 'yarn',
           args: ['develop'],
           interpreter: 'bash',
-          cwd: '/mnt/d/CODELABS/project/backend/rapid-bloom-backend/projects/benno-blog',
+          cwd: `/home/benno/projects/${project.name}`,
         },
         err => {
           if (err) {
